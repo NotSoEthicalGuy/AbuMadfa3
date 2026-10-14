@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Abu Madfa3 - Survivor.io Replica</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD Overlay -->
+    <div id="hud-top">
+      <!-- XP Bar -->
+      <div id="xp-bar-container">
+        <div id="xp-bar-fill"></div>
+        <div id="level-badge">LV <span id="level-val">1</span></div>
+      </div>
+
+      <!-- Stats Bar (HP, Time, Kills, Gold) -->
+      <div id="stats-bar">
+        <div class="stat-pill hp-pill" title="Player Health & Regeneration">
+          <span class="stat-icon" id="hp-icon">❤️</span>
+          <div id="hp-bar-container">
+            <div id="hp-bar-fill"></div>
+          </div>
+          <span id="hp-val">100/100</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-icon">⏱️</span>
+          <span id="timer-val">00:00</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-icon">💀</span>
+          <span id="kills-val">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-icon">🪙</span>
+          <span id="coins-val">0</span>
+        </div>
+        <button id="pause-btn" class="hud-icon-btn" title="Pause Game">⏸️</button>
+        <button id="audio-btn" class="hud-icon-btn" title="Toggle Sound">🔊</button>
+      </div>
+
+      <!-- Equipment Inventory HUD -->
+      <div id="inventory-bar">
+        <div class="inv-section">
+          <span class="inv-label">WEAPONS</span>
+          <div id="weapon-slots" class="slots-container"></div>
+        </div>
+        <div class="inv-section">
+          <span class="inv-label">PASSIVES</span>
+          <div id="passive-slots" class="slots-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boss Health Bar (Hidden by default) -->
+    <div id="boss-hud" class="hidden">
+      <div id="boss-name">MUTANT BRUTE</div>
+      <div id="boss-hp-container">
+        <div id="boss-hp-fill"></div>
+      </div>
+    </div>
+
+    <!-- On-Screen Virtual Touch Joystick (For mobile/touch devices) -->
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-stick"></div>
+      </div>
+    </div>
+
+    <!-- Start / Title Screen Overlay -->
+    <div id="start-overlay" class="modal-overlay">
+      <div class="modal-card title-card">
+        <div class="hero-avatar">
+          <div class="avatar-icon">💥</div>
+        </div>
+        <h1 class="game-title">ABU MADFA3</h1>
+        <p class="game-subtitle tribute-text">A tribute game to our dear Anthony</p>
+        
+        <div class="controls-guide">
+          <div class="guide-item">
+            <span class="guide-key">W A S D</span> or <span class="guide-key">ARROWS</span>
+            <span class="guide-desc">Move Survivor</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">AUTO-AIM</span>
+            <span class="guide-desc">Bazooka locks onto & fires at swarms automatically</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">TOUCH</span>
+            <span class="guide-desc">Drag virtual joystick on touchscreens</span>
+          </div>
+        </div>
+
+        <div class="feature-pills">
+          <span class="pill">🚀 AoE Rockets</span>
+          <span class="pill">🎖️ Tactical Soldiers</span>
+          <span class="pill">⏱️ 20 Min Challenge</span>
+          <span class="pill">🏆 Leaderboard</span>
+        </div>
+
+        <div class="soldier-input-group">
+          <label for="soldier-name-main">SOLDIER CALLSIGN / NAME:</label>
+          <input type="text" id="soldier-name-main" placeholder="Enter Soldier Name..." maxlength="15" autocomplete="off">
+        </div>
+
+        <div class="title-action-buttons">
+          <button id="start-game-btn" class="arcade-btn pulse-glow">DEPLOY TO BATTLE</button>
+          <button id="view-leaderboard-btn" class="arcade-btn btn-secondary">🏆 LEADERBOARD</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level-Up Modal Overlay -->
+    <div id="levelup-overlay" class="modal-overlay hidden">
+      <div class="modal-card levelup-card">
+        <div class="levelup-header">
+          <div class="spark-star">⭐</div>
+          <h2 class="levelup-title">LEVEL UP!</h2>
+          <p class="levelup-sub">CHOOSE YOUR UPGRADE</p>
+        </div>
+        <div id="upgrade-cards-container" class="cards-grid">
+          <!-- Dynamically injected upgrade cards -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Treasure Chest Reward Modal Overlay -->
+    <div id="chest-overlay" class="modal-overlay hidden">
+      <div class="modal-card chest-card">
+        <div class="chest-icon-anim">📦</div>
+        <h2 class="chest-title">LUCKY CHEST!</h2>
+        <div id="chest-rewards-list" class="chest-rewards"></div>
+        <button id="chest-claim-btn" class="arcade-btn">CLAIM REWARDS</button>
+      </div>
+    </div>
+
+    <!-- Pause Menu Overlay -->
+    <div id="pause-overlay" class="modal-overlay hidden">
+      <div class="modal-card pause-card">
+        <h2>GAME PAUSED</h2>
+        <div class="pause-options">
+          <button id="resume-btn" class="arcade-btn">RESUME</button>
+          <button id="open-code-btn" class="arcade-btn btn-secret">🔑 ENTER SECRET CODE</button>
+          <button id="pause-menu-btn" class="arcade-btn btn-secondary">🏠 MAIN MENU</button>
+          <button id="restart-btn" class="arcade-btn btn-danger">🔄 RESTART MISSION</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secret Code Input Modal -->
+    <div id="code-overlay" class="modal-overlay hidden">
+      <div class="modal-card code-card">
+        <div class="secret-icon">🔐</div>
+        <h2>CLASSIFIED CLEARANCE</h2>
+        <p class="code-sub">Enter encrypted tactical access code:</p>
+        <div class="code-input-row">
+          <input type="text" id="secret-code-input" placeholder="ENTER CODE..." maxlength="20" autocomplete="off">
+        </div>
+        <div id="code-error-msg" class="code-error hidden">INVALID CODE</div>
+        <div class="code-btn-row">
+          <button id="submit-code-btn" class="arcade-btn">SUBMIT CODE</button>
+          <button id="cancel-code-btn" class="arcade-btn btn-secondary">CANCEL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anthony Secret Activated Modal -->
+    <div id="anthony-activated-overlay" class="modal-overlay hidden">
+      <div class="modal-card anthony-card">
+        <div class="anthony-avatar">💥🎖️</div>
+        <h1 class="anthony-title">ANTHONY PROTOCOL</h1>
+        <div class="anthony-quote-box">
+          <p class="anthony-quote">"Privyet, Enta btebra3 bl harb halla2"</p>
+        </div>
+        <div class="anthony-buff-details">
+          <div class="buff-item">🚀 <strong>Mega Bazooka</strong> unlocked (Oversized Warhead)</div>
+          <div class="buff-item">⚡ <strong>+2 Levels</strong> granted to all weapons & passives</div>
+          <div class="buff-item">🛡️ <strong>+200 Max HP & Instant Full Recovery</strong></div>
+          <div class="buff-item">👟 <strong>+35% Combat Sprint Speed</strong></div>
+        </div>
+        <button id="anthony-continue-btn" class="arcade-btn pulse-glow">UNLEASH THE CANNON</button>
+      </div>
+    </div>
+
+    <!-- Mharreb Query Secret Activated Modal -->
+    <div id="weed-activated-overlay" class="modal-overlay hidden">
+      <div class="modal-card weed-card">
+        <div class="weed-avatar">🌿💨</div>
+        <h1 class="weed-title">MHARREB QUERY ACTIVATED</h1>
+        <div class="weed-quote-box">
+          <p class="weed-quote">"One good thing about music, when it hits you, you feel no pain... Enjoy the high vibes!"</p>
+        </div>
+        <div class="weed-buff-details">
+          <div class="buff-item">🍁 <strong>Herbal Cannons</strong>: Rocket warheads transformed into explosive spinning weed leaves!</div>
+          <div class="buff-item">🌈 <strong>Psychedelic High Vision</strong>: Trippy chromatic aura & herbal smoke across the battlefield!</div>
+          <div class="buff-item">🎸 <strong>Roots Reggae Vibe</strong>: Bob Marley style dub grooves pumping in the background!</div>
+          <div class="buff-item">⚡ <strong>+25% Fire Rate & +20% Movement Speed</strong></div>
+        </div>
+        <button id="weed-continue-btn" class="arcade-btn pulse-glow btn-weed">FEEL THE HIGH VIBES</button>
+      </div>
+    </div>
+
+    <!-- Peter In The House Secret Activated Modal -->
+    <div id="peter-activated-overlay" class="modal-overlay hidden">
+      <div class="modal-card peter-card">
+        <div class="peter-avatar">🌈🍆✨</div>
+        <h1 class="peter-title">PETER IN THE HOUSE!</h1>
+        <div class="peter-quote-box">
+          <p class="peter-quote">"Serving fierce looks, rainbow power, and heavy artillery, honey!"</p>
+        </div>
+        <div class="peter-buff-details">
+          <div class="buff-item">🍆 <strong>Dildo Launcher</strong>: Shoulder cannon transformed into a colossal tactical dildo!</div>
+          <div class="buff-item">🚀 <strong>Dick Rockets</strong>: Fires aerodynamic dick-shaped warheads with rainbow sparkle trails!</div>
+          <div class="buff-item">🌈 <strong>Rainbow Gay Vibes</strong>: Full animated prismatic rainbow border & shimmering screen aura!</div>
+          <div class="buff-item">💖 <strong>+30% Movement Speed & +25% Fire Rate</strong></div>
+        </div>
+        <button id="peter-continue-btn" class="arcade-btn pulse-glow btn-rainbow">SLAY THE BATTLEFIELD</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard Modal Overlay -->
+    <div id="leaderboard-overlay" class="modal-overlay hidden">
+      <div class="modal-card leaderboard-card">
+        <div class="lb-header">
+          <span class="lb-trophy">🏆</span>
+          <h2>COLLEAGUE LEADERBOARD</h2>
+          <p class="lb-sub">Abu Madfa3 Hall of Fame</p>
+        </div>
+
+        <div class="leaderboard-table-container">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>SOLDIER</th>
+                <th>SURVIVED</th>
+                <th>KILLS</th>
+                <th>SCORE</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <!-- Dynamically populated from real player runs -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="lb-actions">
+          <button id="export-lb-btn" class="arcade-btn btn-secondary" title="Copy formatted leaderboard to clipboard">📋 COPY SCORES</button>
+          <button id="clear-lb-btn" class="arcade-btn btn-danger" style="width: auto;" title="Reset all leaderboard scores">🗑️ RESET</button>
+          <button id="close-lb-btn" class="arcade-btn">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over / Victory Overlay -->
+    <div id="gameover-overlay" class="modal-overlay hidden">
+      <div class="modal-card gameover-card">
+        <div id="end-status-icon" class="status-icon">💀</div>
+        <h2 id="end-title" class="gameover-title">DEFEATED</h2>
+        <p id="end-subtitle" class="gameover-sub">The swarm overwhelmed Abu Madfa3</p>
+
+        <div class="stats-summary-grid">
+          <div class="stat-box">
+            <span class="stat-label">SURVIVED</span>
+            <span id="final-time" class="stat-value">00:00</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">KILLS</span>
+            <span id="final-kills" class="stat-value">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">LEVEL</span>
+            <span id="final-level" class="stat-value">1</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">TOTAL SCORE</span>
+            <span id="final-score" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard Name Submission -->
+        <div id="lb-submit-box" class="lb-submit-section">
+          <label for="player-name-input">RECORD YOUR RUN FOR THE LEADERBOARD:</label>
+          <div class="name-input-group">
+            <input type="text" id="player-name-input" placeholder="Your Name or Nickname" maxlength="15">
+            <button id="save-score-btn" class="arcade-btn btn-small">SAVE SCORE</button>
+          </div>
+          <div id="save-score-status" class="save-status hidden">SAVED TO LEADERBOARD!</div>
+        </div>
+
+        <div class="gameover-buttons">
+          <button id="retry-btn" class="arcade-btn pulse-glow">PLAY AGAIN</button>
+          <button id="go-view-lb-btn" class="arcade-btn btn-secondary">VIEW LEADERBOARD</button>
+          <button id="go-menu-btn" class="arcade-btn btn-secondary">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
