@@ -311,25 +311,27 @@ class EnemyManager {
 
       // AI: Boss Attacks (Charging & Stomping)
       if (e.isBoss) {
-        this.updateBossAI(e, dt, dx, dy, dist);
+        this.updateBossAI(e, dt, dx, dy, dist, effectiveSpeed);
       }
 
-      // AI: Ranged Acid Spitter
+      // AI: Ranged Acid Spitter (Grenadier)
       else if (e.isRanged) {
         e.shootTimer += dt;
-        const config = CONFIG.ENEMIES.SPITTER;
-        if (dist > config.shootRange) {
+        const rangedConfig = CONFIG.ENEMIES[e.type] || {};
+        const shootRange = rangedConfig.shootRange || 320;
+        const shootInterval = rangedConfig.shootInterval || 2.8;
+        if (dist > shootRange) {
           // Approach
           e.x += (dx / dist) * effectiveSpeed * dt;
           e.y += (dy / dist) * effectiveSpeed * dt;
-        } else if (dist < config.shootRange * 0.5) {
+        } else if (dist < shootRange * 0.5) {
           // Back away
           e.x -= (dx / dist) * (effectiveSpeed * 0.6) * dt;
           e.y -= (dy / dist) * (effectiveSpeed * 0.6) * dt;
         }
 
         // Fire Acid Globule
-        if (e.shootTimer >= config.shootInterval) {
+        if (e.shootTimer >= shootInterval) {
           e.shootTimer = 0;
           this.fireAcidGlobule(e.x, e.y, this.player.x, this.player.y);
         }
@@ -351,15 +353,11 @@ class EnemyManager {
   }
 
   // 4 Boss Attack Patterns (Survivor.io Inspired)
-  updateBossAI(boss, dt, dx, dy, dist) {
+  updateBossAI(boss, dt, dx, dy, dist, effectiveSpeed) {
     boss.chargeTimer += dt;
     boss.specialTimer = (boss.specialTimer || 0) + dt;
 
-    let bossSpeed = boss.speed;
-    if (boss.mucusSlowTimer > 0) {
-      boss.mucusSlowTimer -= dt;
-      bossSpeed *= (boss.mucusSlowFactor !== undefined ? boss.mucusSlowFactor : 0.30);
-    }
+    const bossSpeed = effectiveSpeed;
 
     const angleToPlayer = Math.atan2(dy, dx);
 

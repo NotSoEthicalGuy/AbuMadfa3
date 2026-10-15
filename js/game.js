@@ -130,7 +130,46 @@ class Game {
     this.ui.showGameOver(true, this.gameTime, this.enemyManager.totalKills, this.player.level, this.enemyManager.coins);
   }
 
+  // Deactivate all secret codes — ensures only one code is active at a time
+  deactivateAllCodes() {
+    // Reset player flags
+    this.player.isAnthonyBuffed = false;
+    this.player.isWeedMode = false;
+    this.player.isPeterMode = false;
+    this.player.isLuigiMode = false;
+    this.player.radius = CONFIG.PLAYER.RADIUS;
+    this.player.bazookaScale = 1.0;
+
+    // Reset weapon manager flags
+    this.weaponManager.isWeedMode = false;
+    this.weaponManager.isPeterMode = false;
+    this.weaponManager.isLuigiMode = false;
+
+    // Remove visual filters
+    this.canvas.classList.remove('weed-filter');
+    this.canvas.classList.remove('peter-filter');
+    const container = document.getElementById('game-container');
+    if (container) {
+      container.classList.remove('weed-active');
+      container.classList.remove('peter-active');
+    }
+
+    // Restart default music (codes may have changed it)
+    if (window.audioEngine) {
+      window.audioEngine.startMusic();
+    }
+
+    // Recalculate stats cleanly
+    this.player.recalculateStats();
+  }
+
+  activateAnthonyProtocol() {
+    this.deactivateAllCodes();
+    this.player.activateAnthonyProtocol();
+  }
+
   activateWeedMode() {
+    this.deactivateAllCodes();
     // Player stat boost
     this.player.activateWeedMode();
     // Weapon weed mode (leaf projectiles)
@@ -145,6 +184,7 @@ class Game {
   }
 
   activatePeterMode() {
+    this.deactivateAllCodes();
     // Player stat boost
     this.player.activatePeterMode();
     // Weapon Peter mode (dildo launcher & dick rockets)
@@ -158,6 +198,7 @@ class Game {
   }
 
   activateLuigiMode() {
+    this.deactivateAllCodes();
     // Transform hero into Green Big Ogre
     this.player.activateLuigiMode();
     // Weapon switches to Mucus Launcher
