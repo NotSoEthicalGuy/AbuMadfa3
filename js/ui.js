@@ -48,6 +48,7 @@ class UIManager {
     this.codeErrorMsg = document.getElementById('code-error-msg');
     this.anthonyActivatedOverlay = document.getElementById('anthony-activated-overlay');
     this.peterActivatedOverlay = document.getElementById('peter-activated-overlay');
+    this.luigiActivatedOverlay = document.getElementById('luigi-activated-overlay');
 
     // Leaderboard Elements
     this.leaderboardOverlay = document.getElementById('leaderboard-overlay');
@@ -161,6 +162,18 @@ class UIManager {
       });
     }
 
+    // Luigi Time (Big Green Ogre Mode) Continue Button
+    const luigiContinueBtn = document.getElementById('luigi-continue-btn');
+    if (luigiContinueBtn) {
+      luigiContinueBtn.addEventListener('click', () => {
+        if (this.luigiActivatedOverlay) {
+          this.luigiActivatedOverlay.classList.add('hidden');
+        }
+        this.game.activateLuigiMode();
+        this.game.resumeAfterModal();
+      });
+    }
+
     // Clear / Reset Leaderboard
     const clearLbBtn = document.getElementById('clear-lb-btn');
     if (clearLbBtn) {
@@ -224,6 +237,12 @@ class UIManager {
       this.codeOverlay.classList.add('hidden');
       if (this.peterActivatedOverlay) {
         this.peterActivatedOverlay.classList.remove('hidden');
+      }
+      window.audioEngine.playLevelUp();
+    } else if (val === 'LUIGITIME') {
+      this.codeOverlay.classList.add('hidden');
+      if (this.luigiActivatedOverlay) {
+        this.luigiActivatedOverlay.classList.remove('hidden');
       }
       window.audioEngine.playLevelUp();
     } else {

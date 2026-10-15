@@ -150,6 +150,85 @@ class SoundEngine {
     noise.stop(now + duration);
   }
 
+  // SFX: Mucus Launcher Squish-Pop Firing Sound
+  playMucusShoot() {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    // Squishy bubbly pitch bend
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+    oscGain.gain.setValueAtTime(0.45, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+    osc.connect(oscGain);
+    oscGain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.18);
+
+    // Wet liquid squelch
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer();
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(650, now);
+    filter.frequency.exponentialRampToValueAtTime(220, now + 0.14);
+    filter.Q.setValueAtTime(4.0, now);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.35, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.sfxGain);
+    noise.start(now);
+    noise.stop(now + 0.15);
+  }
+
+  // SFX: Wet Mucus Splat & Stick Sound
+  playMucusSplat() {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    // Wet squelch burst
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer();
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1100, now);
+    filter.frequency.exponentialRampToValueAtTime(120, now + 0.28);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.7, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.sfxGain);
+    noise.start(now);
+    noise.stop(now + 0.3);
+
+    // Heavy squishy thud
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.2);
+
+    oscGain.gain.setValueAtTime(0.5, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+
+    osc.connect(oscGain);
+    oscGain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  }
+
   // SFX: Gem Pickup Chime with Musical Progression
   playGemPickup() {
     if (!this.ctx || this.isMuted) return;

@@ -302,6 +302,13 @@ class EnemyManager {
       const dy = this.player.y - e.y;
       const dist = Math.hypot(dx, dy);
 
+      // Mucus slow debuff: -70% movement speed for 3s
+      let effectiveSpeed = e.speed;
+      if (e.mucusSlowTimer > 0) {
+        e.mucusSlowTimer -= dt;
+        effectiveSpeed *= (e.mucusSlowFactor !== undefined ? e.mucusSlowFactor : 0.30);
+      }
+
       // AI: Boss Attacks (Charging & Stomping)
       if (e.isBoss) {
         this.updateBossAI(e, dt, dx, dy, dist);
@@ -313,12 +320,12 @@ class EnemyManager {
         const config = CONFIG.ENEMIES.SPITTER;
         if (dist > config.shootRange) {
           // Approach
-          e.x += (dx / dist) * e.speed * dt;
-          e.y += (dy / dist) * e.speed * dt;
+          e.x += (dx / dist) * effectiveSpeed * dt;
+          e.y += (dy / dist) * effectiveSpeed * dt;
         } else if (dist < config.shootRange * 0.5) {
           // Back away
-          e.x -= (dx / dist) * (e.speed * 0.6) * dt;
-          e.y -= (dy / dist) * (e.speed * 0.6) * dt;
+          e.x -= (dx / dist) * (effectiveSpeed * 0.6) * dt;
+          e.y -= (dy / dist) * (effectiveSpeed * 0.6) * dt;
         }
 
         // Fire Acid Globule
@@ -331,8 +338,8 @@ class EnemyManager {
       // AI: Standard Horde Pathing (Direct march toward player)
       else {
         if (dist > 1) {
-          e.x += (dx / dist) * e.speed * dt;
-          e.y += (dy / dist) * e.speed * dt;
+          e.x += (dx / dist) * effectiveSpeed * dt;
+          e.y += (dy / dist) * effectiveSpeed * dt;
         }
       }
 
@@ -348,6 +355,12 @@ class EnemyManager {
     boss.chargeTimer += dt;
     boss.specialTimer = (boss.specialTimer || 0) + dt;
 
+    let bossSpeed = boss.speed;
+    if (boss.mucusSlowTimer > 0) {
+      boss.mucusSlowTimer -= dt;
+      bossSpeed *= (boss.mucusSlowFactor !== undefined ? boss.mucusSlowFactor : 0.30);
+    }
+
     const angleToPlayer = Math.atan2(dy, dx);
 
     // =========================================================================
@@ -356,8 +369,8 @@ class EnemyManager {
     if (boss.bossIndex === 1) {
       if (!boss.isCharging) {
         if (dist > 1) {
-          boss.x += (dx / dist) * boss.speed * dt;
-          boss.y += (dy / dist) * boss.speed * dt;
+          boss.x += (dx / dist) * bossSpeed * dt;
+          boss.y += (dy / dist) * bossSpeed * dt;
         }
 
         // Ground Stomp every 4s
@@ -386,8 +399,8 @@ class EnemyManager {
         const cdy = boss.chargeTarget.y - boss.y;
         const cdist = Math.hypot(cdx, cdy);
         if (cdist > 15 && boss.chargeTimer < 1.3) {
-          boss.x += (cdx / cdist) * (boss.speed * 3.4) * dt;
-          boss.y += (cdy / cdist) * (boss.speed * 3.4) * dt;
+          boss.x += (cdx / cdist) * (bossSpeed * 3.4) * dt;
+          boss.y += (cdy / cdist) * (bossSpeed * 3.4) * dt;
           window.particleEngine.emit(boss.x, boss.y, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 40, 'rgba(255, 100, 100, 0.4)', 8, 0.25, true, 'smoke');
         } else {
           boss.isCharging = false;
@@ -401,8 +414,8 @@ class EnemyManager {
     // =========================================================================
     else if (boss.bossIndex === 2) {
       if (dist > 1) {
-        boss.x += (dx / dist) * boss.speed * dt;
-        boss.y += (dy / dist) * boss.speed * dt;
+        boss.x += (dx / dist) * bossSpeed * dt;
+        boss.y += (dy / dist) * bossSpeed * dt;
       }
 
       // Drop lingering toxic chemical patch every 3.2s
@@ -435,8 +448,8 @@ class EnemyManager {
     // =========================================================================
     else if (boss.bossIndex === 3) {
       if (dist > 1) {
-        boss.x += (dx / dist) * boss.speed * dt;
-        boss.y += (dy / dist) * boss.speed * dt;
+        boss.x += (dx / dist) * bossSpeed * dt;
+        boss.y += (dy / dist) * bossSpeed * dt;
       }
 
       // Sweeping Twin Lasers
@@ -488,8 +501,8 @@ class EnemyManager {
     else if (boss.bossIndex === 4) {
       if (!boss.isCharging) {
         if (dist > 1) {
-          boss.x += (dx / dist) * boss.speed * dt;
-          boss.y += (dy / dist) * boss.speed * dt;
+          boss.x += (dx / dist) * bossSpeed * dt;
+          boss.y += (dy / dist) * bossSpeed * dt;
         }
 
         // 360-degree Bullet Hell Ring every 3.0s
@@ -522,8 +535,8 @@ class EnemyManager {
         const cdy = boss.chargeTarget.y - boss.y;
         const cdist = Math.hypot(cdx, cdy);
         if (cdist > 15 && boss.chargeTimer < 1.0) {
-          boss.x += (cdx / cdist) * (boss.speed * 4.0) * dt;
-          boss.y += (cdy / cdist) * (boss.speed * 4.0) * dt;
+          boss.x += (cdx / cdist) * (bossSpeed * 4.0) * dt;
+          boss.y += (cdy / cdist) * (bossSpeed * 4.0) * dt;
           window.particleEngine.emit(boss.x, boss.y, (Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, '#f72585', 9, 0.3, true, 'spark');
         } else {
           boss.isCharging = false;

@@ -31,6 +31,7 @@ class Player {
     this.isAnthonyBuffed = false;
     this.isWeedMode = false;
     this.isPeterMode = false;
+    this.isLuigiMode = false;
 
     // Contact damage & 7s health regeneration tracking
     this.timeSinceLastContact = 999;
@@ -56,6 +57,8 @@ class Player {
     this.isAnthonyBuffed = false;
     this.isWeedMode = false;
     this.isPeterMode = false;
+    this.isLuigiMode = false;
+    this.radius = CONFIG.PLAYER.RADIUS;
     this.timeSinceLastContact = 999;
     this.contactDamageCooldown = 0;
     this.regenParticleTimer = 0;
@@ -105,12 +108,12 @@ class Player {
     }
     this.pickupRadius = CONFIG.PLAYER.PICKUP_RADIUS * magnetMult;
 
-    // Secret Anthony Protocol Buffs
+    // Secret Anthony Protocol Buffs (Balanced significant boost, no god mode)
     if (this.isAnthonyBuffed) {
-      this.speed *= 1.35;
-      this.maxHp += 200;
-      this.hpRegen += 5;
-      this.pickupRadius *= 1.5;
+      this.speed *= 1.20; // +20% sprint speed
+      this.maxHp += 40;   // +40 Max HP
+      this.hpRegen += 1.0; // +1.0 HP/sec regen
+      this.pickupRadius *= 1.25; // +25% pickup range
     }
 
     // Mharreb Query Weed Mode Buffs
@@ -124,17 +127,37 @@ class Player {
       this.speed *= 1.30; // +30% fabulous combat speed
       this.hpRegen += 4;
     }
+
+    // Luigi Time / Big Green Ogre Buffs
+    if (this.isLuigiMode) {
+      this.maxHp += 150; // Hulking ogre health
+      this.hpRegen += 2.0; // Ogre regeneration
+      this.pickupRadius *= 1.30;
+    }
   }
 
   activateAnthonyProtocol() {
     this.isAnthonyBuffed = true;
-    this.bazookaScale = 1.85; // Much bigger bazooka!
+    this.bazookaScale = 1.35; // Reinforced launcher
     this.recalculateStats();
-    this.hp = this.maxHp; // Full health restoration
+    this.hp = Math.min(this.maxHp, this.hp + 50); // Partial health boost
     if (this.weaponManager) {
       this.weaponManager.applyAnthonyBuff();
     }
     window.particleEngine.emitLevelUpSparks(this.x, this.y);
+    window.audioEngine.playLevelUp();
+  }
+
+  activateLuigiMode() {
+    this.isLuigiMode = true;
+    this.radius = 22; // Larger ogre hitbox
+    this.bazookaScale = 1.35; // Sturdy RPG launcher
+    this.recalculateStats();
+    this.hp = Math.min(this.maxHp, this.hp + 100);
+    if (this.weaponManager) {
+      this.weaponManager.activateLuigiMode();
+    }
+    window.particleEngine.emitHitSplatter(this.x, this.y, '#76ff03', 35);
     window.audioEngine.playLevelUp();
   }
 
@@ -362,64 +385,83 @@ class Player {
       ctx.restore();
     }
 
+    // Swamp Slime Aura when Luigi mode is active
+    if (this.isLuigiMode) {
+      ctx.save();
+      const pulse = Math.sin(Date.now() / 170) * 4;
+      ctx.strokeStyle = 'rgba(118, 255, 3, 0.75)';
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = '#76ff03';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(0, 0, 26 + pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // 1. Shadow on ground
     ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(0, 16, 16, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 16, this.isLuigiMode ? 22 : 16, this.isLuigiMode ? 10 : 7, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Bobbing offset
     const bob = Math.sin(this.walkCycle) * 3;
-
-    // 2. Walking Legs / Combat Boots
-    ctx.fillStyle = this.isPeterMode ? '#880e4f' : '#263238';
     const stride = Math.sin(this.walkCycle) * 7;
-    // Left leg
-    ctx.fillRect(-8, 8 + bob + stride, 6, 9);
-    // Right leg
-    ctx.fillRect(2, 8 + bob - stride, 6, 9);
 
-    // 3. Torso / Tactical Camouflage Vest
-    ctx.fillStyle = this.isPeterMode ? '#ff4081' : (this.isAnthonyBuffed ? '#b8860b' : '#455a64');
-    ctx.fillRect(-10, -8 + bob, 20, 18);
+    if (this.isLuigiMode) {
+      // 2, 3, 4: Render Big Green Ogre Body
+      this.renderOgreModel(ctx, bob, stride);
+    } else {
+      // 2. Walking Legs / Combat Boots
+      ctx.fillStyle = this.isPeterMode ? '#880e4f' : '#263238';
+      // Left leg
+      ctx.fillRect(-8, 8 + bob + stride, 6, 9);
+      // Right leg
+      ctx.fillRect(2, 8 + bob - stride, 6, 9);
 
-    // Tactical pouches & belt
-    ctx.fillStyle = this.isPeterMode ? '#ffd600' : '#ff9800';
-    ctx.fillRect(-10, 7 + bob, 20, 3);
-    ctx.fillStyle = this.isPeterMode ? '#ad1457' : '#37474f';
-    ctx.fillRect(-7, -4 + bob, 5, 8);
-    ctx.fillRect(2, -4 + bob, 5, 8);
+      // 3. Torso / Tactical Camouflage Vest
+      ctx.fillStyle = this.isPeterMode ? '#ff4081' : (this.isAnthonyBuffed ? '#b8860b' : '#455a64');
+      ctx.fillRect(-10, -8 + bob, 20, 18);
 
-    // 4. Head & Helmet
-    // Face
-    ctx.fillStyle = '#ffcc80';
-    ctx.beginPath();
-    ctx.arc(0, -14 + bob, 8, 0, Math.PI * 2);
-    ctx.fill();
+      // Tactical pouches & belt
+      ctx.fillStyle = this.isPeterMode ? '#ffd600' : '#ff9800';
+      ctx.fillRect(-10, 7 + bob, 20, 3);
+      ctx.fillStyle = this.isPeterMode ? '#ad1457' : '#37474f';
+      ctx.fillRect(-7, -4 + bob, 5, 8);
+      ctx.fillRect(2, -4 + bob, 5, 8);
 
-    // Eyes
-    ctx.fillStyle = '#212121';
-    const eyeDir = Math.cos(this.aimAngle) > 0 ? 2 : -2;
-    ctx.fillRect(eyeDir, -16 + bob, 2, 3);
+      // 4. Head & Helmet
+      // Face
+      ctx.fillStyle = '#ffcc80';
+      ctx.beginPath();
+      ctx.arc(0, -14 + bob, 8, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Military Helmet
-    ctx.fillStyle = this.isPeterMode ? '#d81b60' : (this.isAnthonyBuffed ? '#d4af37' : '#33691e');
-    ctx.beginPath();
-    ctx.arc(0, -18 + bob, 10, Math.PI, Math.PI * 2);
-    ctx.lineTo(10, -15 + bob);
-    ctx.lineTo(-10, -15 + bob);
-    ctx.closePath();
-    ctx.fill();
-    // Helmet rim
-    ctx.strokeStyle = this.isPeterMode ? '#ff80ab' : (this.isAnthonyBuffed ? '#ffd700' : '#1b5e20');
-    ctx.lineWidth = 2;
-    ctx.stroke();
+      // Eyes
+      ctx.fillStyle = '#212121';
+      const eyeDir = Math.cos(this.aimAngle) > 0 ? 2 : -2;
+      ctx.fillRect(eyeDir, -16 + bob, 2, 3);
 
-    // 5. Shoulder-Mounted Weapon (Dildo if Peter Mode, else Bazooka)
+      // Military Helmet
+      ctx.fillStyle = this.isPeterMode ? '#d81b60' : (this.isAnthonyBuffed ? '#d4af37' : '#33691e');
+      ctx.beginPath();
+      ctx.arc(0, -18 + bob, 10, Math.PI, Math.PI * 2);
+      ctx.lineTo(10, -15 + bob);
+      ctx.lineTo(-10, -15 + bob);
+      ctx.closePath();
+      ctx.fill();
+      // Helmet rim
+      ctx.strokeStyle = this.isPeterMode ? '#ff80ab' : (this.isAnthonyBuffed ? '#ffd700' : '#1b5e20');
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 5. Shoulder-Mounted Weapon (Dildo if Peter Mode, RPG if Ogre, else Bazooka)
     ctx.save();
-    // Pivot at soldier's shoulder
-    const shoulderX = 0;
-    const shoulderY = -6 + bob;
+    // Pivot at soldier's / ogre's shoulder
+    const shoulderX = this.isLuigiMode ? 2 : 0;
+    const shoulderY = (this.isLuigiMode ? -10 : -6) + bob;
     ctx.translate(shoulderX, shoulderY);
     ctx.rotate(this.aimAngle);
 
@@ -469,6 +511,11 @@ class Player {
 
   // Draw detailed shoulder bazooka weapon model
   renderBazookaModel(ctx, isEvo) {
+    if (this.isLuigiMode) {
+      this.renderOgreRPGModel(ctx, isEvo);
+      return;
+    }
+
     const tubeLength = isEvo ? 44 : 34;
     const tubeWidth = isEvo ? 11 : 7;
 
@@ -511,6 +558,233 @@ class Player {
     ctx.beginPath();
     ctx.arc(0, 5, 3.5, 0, Math.PI * 2);
     ctx.arc(14, 5, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw heavy RPG-7 launcher held by Big Green Ogre
+  renderOgreRPGModel(ctx, isEvo) {
+    const tubeLength = isEvo ? 46 : 38;
+    const tubeWidth = isEvo ? 12 : 8;
+
+    // Rear exhaust cone
+    ctx.fillStyle = '#263238';
+    ctx.beginPath();
+    ctx.moveTo(-16, -tubeWidth * 0.8);
+    ctx.lineTo(-24, -tubeWidth * 1.3);
+    ctx.lineTo(-24, tubeWidth * 1.3);
+    ctx.lineTo(-16, tubeWidth * 0.8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Steel launcher tube (dark olive)
+    ctx.fillStyle = '#2e3d23';
+    ctx.fillRect(-16, -tubeWidth / 2, tubeLength, tubeWidth);
+
+    // Wooden heat shield grip mid-section
+    ctx.fillStyle = '#8d6e63';
+    ctx.fillRect(-6, -tubeWidth / 2 - 1, 16, tubeWidth + 2);
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(-2, -tubeWidth / 2 - 1, 3, tubeWidth + 2);
+    ctx.fillRect(4, -tubeWidth / 2 - 1, 3, tubeWidth + 2);
+
+    // Optical scope
+    ctx.fillStyle = '#1b2a1a';
+    ctx.fillRect(-2, -tubeWidth / 2 - 7, 12, 4);
+    ctx.fillStyle = '#76ff03'; // slimy glowing scope lens
+    ctx.fillRect(8, -tubeWidth / 2 - 6, 2, 2);
+
+    // Front Muzzle loaded with Green Mucus Globule
+    const muzzleX = tubeLength - 16;
+    ctx.fillStyle = '#64dd17';
+    ctx.beginPath();
+    ctx.arc(muzzleX + 5, 0, tubeWidth * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#76ff03';
+    ctx.beginPath();
+    ctx.arc(muzzleX + 4, -1, tubeWidth * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dripping slime drop at muzzle
+    ctx.fillStyle = '#b2ff59';
+    ctx.beginPath();
+    ctx.arc(muzzleX + 8, tubeWidth * 0.8, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Chunky Big Green Ogre hands gripping the handles
+    ctx.fillStyle = '#7cb342';
+    ctx.strokeStyle = '#558b2f';
+    ctx.lineWidth = 1;
+    // Rear hand
+    ctx.beginPath();
+    ctx.arc(0, 6, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Fore hand
+    ctx.beginPath();
+    ctx.arc(15, 6, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Draw Big Green Ogre character model (Luigi Time)
+  renderOgreModel(ctx, bob, stride) {
+    // 1. Walking Legs / Heavy Muddy Boots
+    ctx.fillStyle = '#4e342e'; // Dark mud leather boots
+    ctx.fillRect(-11, 10 + bob + stride, 8, 12);
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(-13, 17 + bob + stride, 11, 5); // boot sole
+
+    ctx.fillStyle = '#4e342e';
+    ctx.fillRect(3, 10 + bob - stride, 8, 12);
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(2, 17 + bob - stride, 11, 5);
+
+    // Ogre Knees / Trousers (torn brown burlap pants)
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(-11, 6 + bob + stride * 0.5, 8, 6);
+    ctx.fillRect(3, 6 + bob - stride * 0.5, 8, 6);
+
+    // 2. Huge Bulky Ogre Torso
+    // Massive green ogre belly & chest
+    ctx.fillStyle = '#689f38'; // Darker green shading
+    ctx.beginPath();
+    ctx.ellipse(0, -5 + bob, 16, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#7cb342'; // Vibrant ogre green skin
+    ctx.beginPath();
+    ctx.ellipse(0, -6 + bob, 14, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sleeveless Rustic Burlap / Leather Vest
+    ctx.fillStyle = '#4e342e';
+    ctx.fillRect(-15, -16 + bob, 8, 20);
+    ctx.fillRect(7, -16 + bob, 8, 20);
+    ctx.fillRect(-14, -18 + bob, 28, 4);
+
+    // Rope / String belt
+    ctx.strokeStyle = '#d7ccc8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-14, 3 + bob);
+    ctx.lineTo(14, 3 + bob);
+    ctx.stroke();
+
+    // Belt knot & dangling rope
+    ctx.fillStyle = '#bcaaa4';
+    ctx.fillRect(-2, 2 + bob, 5, 5);
+    ctx.fillRect(-1, 6 + bob, 3, 6);
+
+    // Leather stitching crosses on vest
+    ctx.strokeStyle = '#3e2723';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-11, -8 + bob); ctx.lineTo(-7, -4 + bob);
+    ctx.moveTo(-7, -8 + bob); ctx.lineTo(-11, -4 + bob);
+    ctx.moveTo(8, -8 + bob); ctx.lineTo(12, -4 + bob);
+    ctx.moveTo(12, -8 + bob); ctx.lineTo(8, -4 + bob);
+    ctx.stroke();
+
+    // 3. Ogre Head & Distinctive Trumpet Ears
+    const headY = -22 + bob;
+
+    // Trumpet / Funnel Ogre Ears (Shrek style)
+    // Left ear (flaring funnel outward)
+    ctx.fillStyle = '#689f38';
+    ctx.strokeStyle = '#33691e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-10, headY - 2);
+    ctx.lineTo(-20, headY - 8);
+    ctx.lineTo(-18, headY - 14);
+    ctx.lineTo(-9, headY - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Inner ear funnel opening
+    ctx.fillStyle = '#33691e';
+    ctx.beginPath();
+    ctx.ellipse(-19, headY - 11, 2.5, 4, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Right ear
+    ctx.fillStyle = '#689f38';
+    ctx.beginPath();
+    ctx.moveTo(10, headY - 2);
+    ctx.lineTo(20, headY - 8);
+    ctx.lineTo(18, headY - 14);
+    ctx.lineTo(9, headY - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Inner ear funnel opening
+    ctx.fillStyle = '#33691e';
+    ctx.beginPath();
+    ctx.ellipse(19, headY - 11, 2.5, 4, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Big round green ogre head
+    ctx.fillStyle = '#7cb342';
+    ctx.beginPath();
+    ctx.arc(0, headY, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#558b2f';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Broad ogre jaw / chin
+    ctx.fillStyle = '#689f38';
+    ctx.beginPath();
+    ctx.arc(0, headY + 5, 10, 0, Math.PI);
+    ctx.fill();
+
+    // Heavy brow line
+    ctx.fillStyle = '#33691e';
+    ctx.fillRect(-8, headY - 6, 6, 2.5);
+    ctx.fillRect(2, headY - 6, 6, 2.5);
+
+    // Eyes
+    const eyeDir = Math.cos(this.aimAngle) > 0 ? 2 : -2;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-4 + eyeDir * 0.5, headY - 2, 2.5, 0, Math.PI * 2);
+    ctx.arc(4 + eyeDir * 0.5, headY - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#212121';
+    ctx.beginPath();
+    ctx.arc(-4 + eyeDir, headY - 2, 1.4, 0, Math.PI * 2);
+    ctx.arc(4 + eyeDir, headY - 2, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Big wide ogre bulbous nose
+    ctx.fillStyle = '#558b2f';
+    ctx.beginPath();
+    ctx.ellipse(eyeDir * 0.5, headY + 2, 4.5, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Friendly / fierce ogre smile with tusks
+    ctx.strokeStyle = '#1b5e20';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, headY + 5, 6, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    // Small lower white tusks pointing up
+    ctx.fillStyle = '#fff9c4';
+    ctx.beginPath();
+    ctx.moveTo(-4, headY + 7);
+    ctx.lineTo(-3, headY + 3.5);
+    ctx.lineTo(-2, headY + 7);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(2, headY + 7);
+    ctx.lineTo(3, headY + 3.5);
+    ctx.lineTo(4, headY + 7);
+    ctx.closePath();
     ctx.fill();
   }
 

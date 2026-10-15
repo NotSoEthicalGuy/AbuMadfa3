@@ -157,6 +157,13 @@ class Game {
     }
   }
 
+  activateLuigiMode() {
+    // Transform hero into Green Big Ogre
+    this.player.activateLuigiMode();
+    // Weapon switches to Mucus Launcher
+    this.weaponManager.activateLuigiMode();
+  }
+
   // =========================================================================
   // Game Loop
   // =========================================================================

@@ -14,6 +14,7 @@ class WeaponManager {
     this.drones = []; // Drones hovering near player
     this.isWeedMode = false;
     this.isPeterMode = false;
+    this.isLuigiMode = false;
 
     // Start with RPG-7 Bazooka level 1
     this.addWeapon('BAZOOKA');
@@ -27,6 +28,7 @@ class WeaponManager {
     this.drones = [];
     this.isWeedMode = false;
     this.isPeterMode = false;
+    this.isLuigiMode = false;
     this.addWeapon('BAZOOKA');
   }
 
@@ -66,34 +68,23 @@ class WeaponManager {
     this.player.recalculateStats();
   }
 
-  // Boost all weapons and passives by +2 levels when Anthony code is entered
+  // Boost active weapons and passives by +1 level when Anthony code is entered (balanced, not god mode)
   applyAnthonyBuff() {
-    // Ensure core passives exist
-    if (!this.activePassives.HE_FUEL) this.addPassive('HE_FUEL');
-    if (!this.activePassives.BULLET) this.addPassive('BULLET');
-
-    // Add +2 levels to all active weapons
+    // Add +1 level to active weapons (without bypassing evolution rules)
     for (const id in this.activeWeapons) {
       const w = this.activeWeapons[id];
-      w.level = Math.min(CONFIG.WEAPONS[id].maxLevel, w.level + 2);
+      if (w.level < CONFIG.WEAPONS[id].maxLevel) {
+        w.level++;
+      }
       if (id === 'DRONE') this.updateDrones();
     }
 
-    // Immediately evolve Bazooka to Doomsday Cannon
-    if (this.activeWeapons.BAZOOKA) {
-      this.evolveWeapon('BAZOOKA');
-    }
-
-    // Add +2 levels to all active passives
+    // Add +1 level to active passives
     for (const id in this.activePassives) {
       const p = this.activePassives[id];
-      p.level = Math.min(CONFIG.PASSIVES[id].maxLevel, p.level + 2);
-    }
-
-    // If less than 3 weapons, grant Guardian Blades as bonus
-    if (!this.activeWeapons.GUARDIAN) {
-      this.addWeapon('GUARDIAN');
-      this.activeWeapons.GUARDIAN.level = 3;
+      if (p.level < CONFIG.PASSIVES[id].maxLevel) {
+        p.level++;
+      }
     }
 
     this.player.recalculateStats();
@@ -109,17 +100,25 @@ class WeaponManager {
     this.player.recalculateStats();
   }
 
+  activateLuigiMode() {
+    this.isLuigiMode = true;
+    this.player.recalculateStats();
+  }
+
   // Stat Modifiers from Passives
   getDamageMultiplier() {
     let mult = 1.0;
     if (this.player && this.player.isAnthonyBuffed) {
-      mult += 0.65; // +65% base damage from Anthony protocol
+      mult += 0.30; // +30% base damage from Anthony protocol (balanced, no god mode)
     }
     if (this.isWeedMode) {
       mult += 0.25; // +25% damage boost from Mharreb Query
     }
     if (this.isPeterMode) {
       mult += 0.30; // +30% fabulous damage boost from Peter Mode
+    }
+    if (this.isLuigiMode) {
+      mult += 0.25; // +25% heavy ogre damage boost
     }
     if (this.activePassives.BULLET) {
       const lvl = this.activePassives.BULLET.level - 1;
@@ -257,13 +256,15 @@ class WeaponManager {
       this.projectiles.push({
         type: 'rocket',
         isNuke: isEvo,
-        isWeedLeaf: this.isWeedMode && !this.isPeterMode,
-        isDickRocket: this.isPeterMode,
+        isMucus: this.isLuigiMode,
+        isWeedLeaf: this.isWeedMode && !this.isPeterMode && !this.isLuigiMode,
+        isDickRocket: this.isPeterMode && !this.isLuigiMode,
         spinAngle: 0,
+        wobblePhase: Math.random() * Math.PI * 2,
         x: this.player.x + Math.cos(angle) * 22,
         y: this.player.y + Math.sin(angle) * 22,
-        vx: Math.cos(angle) * config.speed,
-        vy: Math.sin(angle) * config.speed,
+        vx: Math.cos(angle) * (this.isLuigiMode ? config.speed * 0.95 : config.speed),
+        vy: Math.sin(angle) * (this.isLuigiMode ? config.speed * 0.95 : config.speed),
         angle: angle,
         damage: damage,
         radius: radius,
@@ -275,7 +276,20 @@ class WeaponManager {
 
     // Recoil and Sound FX
     this.player.recoilOffset = 10;
-    window.audioEngine.playRocketLaunch();
+    if (this.isLuigiMode) {
+      if (window.audioEngine && window.audioEngine.playMucusShoot) {
+        window.audioEngine.playMucusShoot();
+      } else {
+        window.audioEngine.playRocketLaunch();
+      }
+      window.particleEngine.emitHitSplatter(
+        this.player.x + Math.cos(baseAngle) * 24,
+        this.player.y + Math.sin(baseAngle) * 24,
+        '#76ff03', 6
+      );
+    } else {
+      window.audioEngine.playRocketLaunch();
+    }
   }
 
   // =========================================================================
@@ -470,7 +484,23 @@ class WeaponManager {
         proj.x += proj.vx * dt;
         proj.y += proj.vy * dt;
 
-        if (proj.isDickRocket) {
+        if (proj.isMucus) {
+          proj.wobblePhase = (proj.wobblePhase || 0) + dt * 16;
+          // Emit dripping green mucus droplets
+          if (Math.random() < 0.65) {
+            window.particleEngine.particles.push({
+              type: 'mucus_drip',
+              x: proj.x + (Math.random() - 0.5) * 8,
+              y: proj.y + (Math.random() - 0.5) * 8,
+              vx: (Math.random() - 0.5) * 18 - proj.vx * 0.1,
+              vy: (Math.random() - 0.5) * 18 + 20,
+              life: 0.35 + Math.random() * 0.25,
+              maxLife: 0.6,
+              size: 3 + Math.random() * 4,
+              color: Math.random() < 0.5 ? '#76ff03' : '#64dd17',
+            });
+          }
+        } else if (proj.isDickRocket) {
           // Rainbow sparkle and glitter trail
           if (Math.random() < 0.65) {
             const rainbowColors = ['#ff1744', '#ff9100', '#ffd600', '#00e676', '#00b0ff', '#d500f9', '#ff4081'];
@@ -588,6 +618,42 @@ class WeaponManager {
 
   // Rocket Detonation & AoE
   detonateRocket(proj, enemies) {
+    if (proj.isMucus) {
+      // Visual green slime blast & audio
+      window.particleEngine.emitHitSplatter(proj.x, proj.y, '#76ff03', 35);
+      window.particleEngine.emitHitSplatter(proj.x, proj.y, '#2e7d32', 20);
+      if (window.audioEngine && window.audioEngine.playMucusSplat) {
+        window.audioEngine.playMucusSplat();
+      } else {
+        window.audioEngine.playExplosion(false);
+      }
+
+      if (window.gameInstance) {
+        window.gameInstance.triggerScreenShake(8, 0.22);
+      }
+
+      // Apply AoE Damage to all enemies in radius
+      this.applyAoEDamage(proj.x, proj.y, proj.radius, proj.damage, enemies, 0.35);
+
+      // Decreases enemy movement speed by 70% for 3 seconds (effect of sticking in mucus)
+      if (enemies) {
+        for (let j = 0; j < enemies.length; j++) {
+          const enemy = enemies[j];
+          if (!enemy.isDead && Math.hypot(enemy.x - proj.x, enemy.y - proj.y) < proj.radius + enemy.radius) {
+            enemy.mucusSlowTimer = 3.0; // 3 full seconds
+            enemy.mucusSlowFactor = 0.30; // 70% decrease in speed (moves at 30% speed)
+            window.particleEngine.emitHitSplatter(enemy.x, enemy.y, '#76ff03', 6);
+          }
+        }
+      }
+
+      // Add green sticky slime patch on the ground
+      if (window.particleEngine.addNapalmPatch) {
+        window.particleEngine.addNapalmPatch(proj.x, proj.y, proj.radius * 0.75, 2.5, proj.damage * 0.15);
+      }
+      return;
+    }
+
     const isNuke = proj.isNuke;
 
     // Visual explosion & audio
@@ -790,7 +856,10 @@ class WeaponManager {
       ctx.translate(proj.x, proj.y);
 
       if (proj.type === 'rocket') {
-        if (proj.isDickRocket) {
+        if (proj.isMucus) {
+          ctx.rotate(proj.angle);
+          this.renderMucusGlobule(ctx, proj);
+        } else if (proj.isDickRocket) {
           ctx.rotate(proj.angle);
           this.renderDickRocket(ctx, proj);
         } else if (proj.isWeedLeaf) {
@@ -972,6 +1041,60 @@ class WeaponManager {
     ctx.moveTo(headX + headR - 1, -2);
     ctx.lineTo(headX + headR - 1, 2);
     ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Render sticky green mucus projectile (Luigi Time)
+  renderMucusGlobule(ctx, proj) {
+    ctx.save();
+    const wobble = Math.sin(proj.wobblePhase || 0) * 1.5;
+    const length = 20;
+    const width = 12 + wobble;
+
+    // Glowing green aura
+    ctx.shadowColor = '#76ff03';
+    ctx.shadowBlur = 12;
+
+    // Outer slimy droplet body
+    const grad = ctx.createRadialGradient(2, -2, 2, 0, 0, width);
+    grad.addColorStop(0, '#b2ff59');
+    grad.addColorStop(0.4, '#76ff03');
+    grad.addColorStop(0.8, '#388e3c');
+    grad.addColorStop(1, '#1b5e20');
+
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#76ff03';
+    ctx.lineWidth = 1.2;
+
+    // Teardrop / stretched oval mucus shape pointing forward
+    ctx.beginPath();
+    ctx.moveTo(length / 2 + 5, 0); // front tip
+    ctx.quadraticCurveTo(length / 4, -width, -length / 2, -width * 0.7);
+    ctx.quadraticCurveTo(-length / 2 - 5, 0, -length / 2, width * 0.7);
+    ctx.quadraticCurveTo(length / 4, width, length / 2 + 5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Internal translucent air bubbles
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.beginPath();
+    ctx.arc(-2, -width * 0.35, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(178, 255, 89, 0.8)';
+    ctx.beginPath();
+    ctx.arc(3, width * 0.25, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Trailing small slime droplets
+    ctx.fillStyle = '#64dd17';
+    ctx.beginPath();
+    ctx.arc(-length / 2 - 5 - wobble, wobble, 2.5, 0, Math.PI * 2);
+    ctx.arc(-length / 2 - 10, -wobble * 0.8, 1.6, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
   }
